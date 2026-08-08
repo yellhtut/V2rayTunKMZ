@@ -9,6 +9,6 @@ class V2RayTunApp : Application() {
         super.onCreate()
         // Which engine this resolves to was decided at compile time, by whether
         // libs/libv2ray.aar was present — see the sourceSets block in app/build.gradle.kts.
-        installTunnelCore()
+        installTunnelCore(this)
     }
 }

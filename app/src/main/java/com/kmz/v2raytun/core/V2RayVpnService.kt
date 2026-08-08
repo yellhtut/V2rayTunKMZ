@@ -63,7 +63,7 @@ class V2RayVpnService : VpnService() {
 
             try {
                 val tun = establishTun(profile)
-                core.start(ConfigGenerator.toJson(profile), tun.fd) { fd -> protect(fd) }
+                core.start(ConfigGenerator.toJson(profile), tun.fd)
 
                 TunnelMonitor.update(TunnelState.Connected(profile.id, profile.name))
                 TunnelNotifications.startForeground(

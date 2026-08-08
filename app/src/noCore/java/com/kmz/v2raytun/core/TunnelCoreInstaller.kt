@@ -1,5 +1,6 @@
 package com.kmz.v2raytun.core
 
+import android.content.Context
 import android.util.Log
 
 /**
@@ -12,6 +13,7 @@ import android.util.Log
  * [TunnelCoreProvider] already defaults to [MissingTunnelCore], so there is genuinely nothing
  * to do here beyond saying so once, where a bug report will show it.
  */
-internal fun installTunnelCore() {
+@Suppress("UNUSED_PARAMETER")
+internal fun installTunnelCore(context: Context) {
     Log.i("TunnelCore", "no tunnel core in this build; see app/libs/README.md")
 }

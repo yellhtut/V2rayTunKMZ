@@ -21,12 +21,9 @@ interface TunnelCore {
      * @param tunFd the established TUN's file descriptor. The engine reads IP packets from
      *   it and writes replies back — this is what actually moves traffic, so an
      *   implementation that ignores it produces a tunnel that swallows every packet.
-     * @param protectSocket hands a raw socket fd to VpnService.protect(), which keeps the
-     *   engine's own traffic out of the TUN. Without it the proxy connection would be routed
-     *   into the tunnel it is trying to serve, and nothing would move.
      * @throws TunnelException if the engine cannot start
      */
-    fun start(config: String, tunFd: Int, protectSocket: (Int) -> Boolean)
+    fun start(config: String, tunFd: Int)
 
     fun stop()
 
@@ -46,7 +43,7 @@ object MissingTunnelCore : TunnelCore {
 
     override val isRunning: Boolean = false
 
-    override fun start(config: String, tunFd: Int, protectSocket: (Int) -> Boolean) {
+    override fun start(config: String, tunFd: Int) {
         Log.w(TAG, "start() with no core present; config was ${config.length} bytes")
         throw TunnelException(
             "The tunnel core isn't bundled in this build. See app/libs/README.md.",
