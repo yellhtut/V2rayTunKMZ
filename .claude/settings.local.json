@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"d:/\\(13\\)Projects/V2rayTunKMZ\" log --oneline -20)"
+    ]
+  }
+}

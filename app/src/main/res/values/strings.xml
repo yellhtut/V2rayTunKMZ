@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">V2RayTun</string>
+
+    <string name="profiles_title">Servers</string>
+    <string name="profiles_empty_title">No servers yet</string>
+    <string name="profiles_empty_body">Copy a vmess://, vless://, ss:// or trojan:// link, then import it from the clipboard.</string>
+
+    <string name="import_from_clipboard">Import from clipboard</string>
+    <string name="import_clipboard_empty">Clipboard is empty</string>
+    <string name="import_none_found">No valid share links found in the clipboard</string>
+
+    <string name="action_delete">Delete</string>
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_cancel">Cancel</string>
+
+    <string name="cd_more_options">More options</string>
+
+    <string name="delete_confirm_title">Delete server?</string>
+    <string name="delete_confirm_body">%1$s will be removed. This can\'t be undone.</string>
+</resources>

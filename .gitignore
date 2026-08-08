@@ -1,0 +1,16 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Core binaries are fetched, not committed. See app/libs/README.md.
+/app/libs/*.aar
+/app/src/main/jniLibs/
+/app/src/main/assets/*.dat

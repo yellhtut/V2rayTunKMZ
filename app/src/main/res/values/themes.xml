@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Parented to a platform theme on purpose: Compose owns all in-app styling, so pulling
+      in com.google.android.material just to inherit a theme would be dead weight. The
+      night variant lives in values-night/.
+    -->
+    <style name="Theme.V2RayTun" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

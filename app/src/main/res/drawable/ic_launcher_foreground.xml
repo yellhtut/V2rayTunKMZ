@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A shield with a tunnel opening: 108dp canvas, art kept inside the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 L76,34 L76,54 C76,68 66,78 54,83 C42,78 32,68 32,54 L32,34 Z" />
+
+    <path
+        android:fillColor="#0F3D5C"
+        android:pathData="M54,44 C61,44 66,49 66,56 L66,70 L58,70 L58,56 C58,54 56,52 54,52 C52,52 50,54 50,56 L50,70 L42,70 L42,56 C42,49 47,44 54,44 Z" />
+</vector>
