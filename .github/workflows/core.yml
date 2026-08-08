@@ -137,12 +137,27 @@ jobs:
             javap -protected -classpath classes.jar $OWN
           } | tee "$GITHUB_WORKSPACE/api.txt"
 
+          # The full dump runs to thousands of lines. Writing the binding needs a much smaller
+          # subset — the entry-point type, the callback interface, and the handful of methods
+          # that start, stop and report on a tunnel — so it is distilled into its own short
+          # file that is cheap to read or paste back.
+          {
+            echo '### Declared types'
+            javap -protected -classpath classes.jar $OWN \
+              | grep -E '^(public|abstract|final)?\s*(class|interface)' || true
+            echo; echo '### Members that look load-bearing for a tunnel binding'
+            javap -protected -classpath classes.jar $OWN \
+              | grep -iE '(class|interface) |run|start|stop|loop|config|protect|setup|shut|stat|quer|delay|tun|fd|point|controller|callback|version' \
+              || true
+          } | tee "$GITHUB_WORKSPACE/cheatsheet.txt"
+
       # Rendered on the run's summary page so the report can be read in a browser instead of
       # downloaded — this project is built in CI precisely because the local pipe is slow.
+      # Cheat sheet first: it is the short one, and it is what the binding is written from.
       - name: Publish the reports to the run summary
         if: always()
         run: |
-          for f in provenance.txt layout.txt api.txt; do
+          for f in cheatsheet.txt provenance.txt layout.txt api.txt; do
             [ -f "$f" ] || continue
             printf '## %s\n```text\n' "$f" >> "$GITHUB_STEP_SUMMARY"
             head -c 120000 "$f" >> "$GITHUB_STEP_SUMMARY"
@@ -163,6 +178,7 @@ jobs:
         with:
           name: libv2ray-report
           path: |
+            cheatsheet.txt
             provenance.txt
             layout.txt
             api.txt
