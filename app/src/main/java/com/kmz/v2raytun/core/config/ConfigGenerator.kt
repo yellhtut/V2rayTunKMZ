@@ -8,14 +8,16 @@ import kotlinx.serialization.json.Json
 /**
  * Builds the Xray JSON config that the core is started with.
  *
- * The tunnel is wired TUN -> tun2socks -> local socks inbound -> proxy outbound, so the
- * generated config always exposes a socks port on loopback ([SOCKS_PORT]) rather than
- * touching the TUN device itself. That keeps this class pure: it is just a [Profile] to
- * JSON transform, unit-testable without the core or an Android device.
+ * The core this app links (AndroidLibXrayLite's CoreController) has gVisor netstack compiled
+ * in and reads IP packets off the TUN fd directly, so there is no separate tun2socks process
+ * and this config never names the TUN. It still exposes a loopback socks inbound
+ * ([SOCKS_PORT]): it is the general-purpose entry point, and keeping it costs nothing if the
+ * core's own TUN handler turns out not to route through it. Either way this class stays a pure
+ * [Profile] to JSON transform, unit-testable without the core or a device.
  */
 object ConfigGenerator {
 
-    /** Loopback socks inbound that tun2socks forwards into. */
+    /** Loopback socks inbound on which the core accepts proxied connections. */
     const val SOCKS_PORT = 10808
 
     /**
