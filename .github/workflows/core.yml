@@ -61,6 +61,17 @@ jobs:
               -not -path './.git/*' -print
             echo; echo '### Exported Go symbols at the module root'
             grep -hoE '^func [A-Z][A-Za-z0-9_]*|^type [A-Z][A-Za-z0-9_]*' ./*.go | sort -u
+            echo; echo '### Exported Go declarations in full, with their doc comments'
+            # javap gives types but not parameter names, so `startLoop(String, int)` does not
+            # say what the int is. The Go source does, and getting it wrong is a bug that
+            # compiles — hence printing the declarations rather than inferring them.
+            awk '
+              /^\/\// { doc = doc $0 "\n"; next }
+              /^func [A-Z]/ || /^func \([^)]*\) [A-Z]/ || /^type [A-Z]/ {
+                printf "%s%s\n\n", doc, $0; doc = ""; next
+              }
+              { doc = "" }
+            ' ./*.go
           } | tee "$GITHUB_WORKSPACE/layout.txt"
 
       # Upstream's go.mod picks the Go version — this repo has no business overriding it.
@@ -195,4 +206,69 @@ jobs:
             layout.txt
             api.txt
           if-no-files-found: warn
+
+  # Proves the app actually compiles against the core that was just built. Without this the
+  # first person to find out that the binding does not match the .aar is whoever downloads it,
+  # on a slow connection, by hand — which is the situation this whole CI setup exists to avoid.
+  verify-app:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this app
+        uses: actions/checkout@v4
+
+      - name: Fetch the core that was just built
+        uses: actions/download-artifact@v4
+        with:
+          name: libv2ray-aar
+          path: app/libs
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up the Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml') }}
+          restore-keys: gradle-
+
+      - name: Install Gradle 8.10
+        run: |
+          curl -sSfLo /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.10-bin.zip
+          unzip -q -d "$HOME/gradle-dist" /tmp/gradle.zip
+          echo "$HOME/gradle-dist/gradle-8.10/bin" >> "$GITHUB_PATH"
+
+      # Guards against a silent pass: if the .aar or the binding dir were missing, the build
+      # would fall back to the coreless path and go green without compiling the binding at all.
+      - name: Confirm both halves of the core are present
+        id: halves
+        run: |
+          test -f app/libs/libv2ray.aar || { echo "::error::libv2ray.aar missing"; exit 1; }
+          if [ -d app/src/withCore/java ]; then
+            echo "binding=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::no binding in src/withCore/java yet — nothing to verify"
+            echo "binding=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build the app against the core
+        if: steps.halves.outputs.binding == 'yes'
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload the core-enabled APK
+        if: steps.halves.outputs.binding == 'yes'
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2raytunkmz-debug-apk-with-core
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
 
