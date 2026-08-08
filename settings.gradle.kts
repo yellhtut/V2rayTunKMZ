@@ -19,9 +19,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // The Xray core .aar is checked in under app/libs rather than pulled from a
-        // repository — see app/libs/README.md for provenance.
-        flatDir { dirs("app/libs") }
+        // No flatDir for the Xray core: it is not a published module and is not committed
+        // (see app/libs/README.md). app/build.gradle.kts links it as a plain file dependency
+        // when present, which needs no repository and fails loudly rather than silently
+        // resolving something unexpected.
     }
 }
 

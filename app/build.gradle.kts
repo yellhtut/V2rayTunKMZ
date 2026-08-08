@@ -6,6 +6,18 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// The Xray core is a prebuilt binary, not a source dependency (see app/libs/README.md), so
+// whether it is present decides what gets compiled. The binding code names classes that exist
+// only inside the .aar, which is why it cannot live in src/main — a checkout without the
+// binary would stop compiling. Instead exactly one of two small source dirs is added below.
+val coreAar: File = file("libs/libv2ray.aar")
+val hasCore: Boolean = coreAar.exists()
+
+logger.lifecycle(
+    if (hasCore) "Tunnel core: linking ${coreAar.name}"
+    else "Tunnel core: none — building without a tunnel engine (see app/libs/README.md)",
+)
+
 android {
     namespace = "com.kmz.v2raytun"
     compileSdk = 35
@@ -23,6 +35,10 @@ android {
             // The tun2socks native library ships for these ABIs only.
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
+
+        // Lets code tell an engine-less build from a real one without starting a tunnel
+        // and catching the failure to find out.
+        buildConfigField("boolean", "HAS_CORE", hasCore.toString())
     }
 
     buildTypes {
@@ -57,6 +73,16 @@ android {
         jniLibs {
             // tun2socks is executed from the app's lib dir; it must not be compressed.
             useLegacyPackaging = false
+        }
+    }
+
+    // Exactly one of these is compiled. 'withCore' binds to classes that live inside the
+    // .aar; 'noCore' is a stub that leaves MissingTunnelCore in place. Swapping a whole
+    // source dir keeps every reference to the binary out of a coreless checkout, so the
+    // repo compiles from a clean clone with no manual steps.
+    sourceSets {
+        getByName("main") {
+            java.srcDir(if (hasCore) "src/withCore/java" else "src/noCore/java")
         }
     }
 
@@ -100,9 +126,9 @@ dependencies {
 
     implementation(libs.kotlinx.serialization.json)
 
-    // Xray core. Dropped in manually — see app/libs/README.md.
-    // Commented out until the .aar is present so Phases 0-4 build without it.
-    // implementation(files("libs/libv2ray.aar"))
+    // Xray core: a prebuilt binary, deliberately not committed (see app/libs/README.md).
+    // Absent is a supported state, not a broken one — the build says so and carries on.
+    if (hasCore) implementation(files(coreAar))
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

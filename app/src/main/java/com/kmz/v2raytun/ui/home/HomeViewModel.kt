@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.kmz.v2raytun.BuildConfig
 import com.kmz.v2raytun.core.TunnelController
 import com.kmz.v2raytun.core.TunnelMonitor
 import com.kmz.v2raytun.core.TunnelState
@@ -112,6 +113,14 @@ class HomeViewModel(
     fun connect(): Intent? {
         if (tunnelState.value.isActive) {
             TunnelController.disconnect(getApplication())
+            return null
+        }
+
+        // Refuse early in a build with no engine. Without this the connect would start a
+        // foreground service, raise a notification and prompt for VPN consent, only to fail
+        // the moment the core is asked to start — a lot of ceremony for a known outcome.
+        if (!BuildConfig.HAS_CORE) {
+            emit("This build has no tunnel engine — see app/libs/README.md")
             return null
         }
 
