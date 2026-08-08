@@ -1,9 +1,11 @@
 package com.kmz.v2raytun.ui.home
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +22,8 @@ import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -45,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kmz.v2raytun.R
+import com.kmz.v2raytun.core.TunnelState
 import com.kmz.v2raytun.data.model.Profile
 
 /**
@@ -58,9 +63,17 @@ fun HomeRoute(viewModel: HomeViewModel) {
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val selectedId by viewModel.selectedProfileId.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val tunnelState by viewModel.tunnelState.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val clipboard = LocalClipboardManager.current
+
+    // Android's own VPN consent dialog. Granting it is what allows the TUN to be opened.
+    val consentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        viewModel.onConsentResult(result.resultCode == Activity.RESULT_OK)
+    }
 
     LaunchedEffect(message) {
         val current = message ?: return@LaunchedEffect
@@ -71,10 +84,11 @@ fun HomeRoute(viewModel: HomeViewModel) {
     HomeScreen(
         profiles = profiles,
         selectedId = selectedId,
+        tunnelState = tunnelState,
         snackbarHostState = snackbarHostState,
         onImport = { viewModel.importFromClipboard(clipboard.getText()?.text) },
         onSelect = viewModel::select,
-        onConnect = viewModel::connect,
+        onConnect = { viewModel.connect()?.let(consentLauncher::launch) },
         onDelete = viewModel::delete,
     )
 }
@@ -84,6 +98,7 @@ fun HomeRoute(viewModel: HomeViewModel) {
 private fun HomeScreen(
     profiles: List<Profile>,
     selectedId: Long?,
+    tunnelState: TunnelState,
     snackbarHostState: SnackbarHostState,
     onImport: () -> Unit,
     onSelect: (Profile) -> Unit,
@@ -106,7 +121,11 @@ private fun HomeScreen(
         },
         bottomBar = {
             if (profiles.isNotEmpty()) {
-                ConnectBar(enabled = selectedId != null, onConnect = onConnect)
+                ConnectBar(
+                    tunnelState = tunnelState,
+                    hasSelection = selectedId != null,
+                    onConnect = onConnect,
+                )
             }
         },
     ) { innerPadding ->
@@ -143,25 +162,66 @@ private fun HomeScreen(
         )
     }
 }
-/** Persistent bottom control. Enabled once a server is selected. */
+/**
+ * Persistent bottom control. One button that reflects the tunnel rather than the tap: it
+ * connects when idle, offers Disconnect once up, and goes inert mid-transition so a second
+ * tap can't race the service.
+ */
 @Composable
-private fun ConnectBar(enabled: Boolean, onConnect: () -> Unit) {
+private fun ConnectBar(
+    tunnelState: TunnelState,
+    hasSelection: Boolean,
+    onConnect: () -> Unit,
+) {
+    val connected = tunnelState is TunnelState.Connected
+    val label = when (tunnelState) {
+        is TunnelState.Connecting -> stringResource(R.string.tunnel_connecting)
+        is TunnelState.Disconnecting -> stringResource(R.string.tunnel_disconnecting)
+        is TunnelState.Connected -> stringResource(R.string.action_disconnect)
+        else -> stringResource(R.string.action_connect)
+    }
+
     Surface(tonalElevation = 3.dp) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            if (connected) {
+                Text(
+                    text = (tunnelState as TunnelState.Connected).profileName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+
             Button(
                 onClick = onConnect,
-                enabled = enabled,
+                enabled = !tunnelState.isBusy && (hasSelection || connected),
+                colors = if (connected) {
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                } else {
+                    ButtonDefaults.buttonColors()
+                },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(Icons.Rounded.Bolt, contentDescription = null)
+                if (tunnelState.isBusy) {
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(18.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                } else {
+                    Icon(Icons.Rounded.Bolt, contentDescription = null)
+                }
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.action_connect))
+                Text(label)
             }
         }
     }

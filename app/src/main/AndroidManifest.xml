@@ -30,7 +30,23 @@
             </intent-filter>
         </activity>
 
-        <!-- The VpnService is declared in Phase 5, alongside the class itself. -->
+        <!--
+            exported: the system itself starts a VpnService, so it must be reachable.
+            permission: only the OS holds BIND_VPN_SERVICE, which is what keeps other apps
+            from starting our tunnel.
+        -->
+        <service
+            android:name=".core.V2RayVpnService"
+            android:exported="true"
+            android:foregroundServiceType="specialUse"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="VPN tunnel for user-configured proxy servers" />
+        </service>
 
     </application>
 

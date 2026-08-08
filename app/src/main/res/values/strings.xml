@@ -19,4 +19,11 @@
 
     <string name="delete_confirm_title">Delete server?</string>
     <string name="delete_confirm_body">%1$s will be removed. This can\'t be undone.</string>
+
+    <string name="tunnel_channel_name">Tunnel status</string>
+    <string name="tunnel_channel_description">Shows whether the VPN tunnel is running.</string>
+    <string name="tunnel_connecting">Connecting…</string>
+    <string name="tunnel_connected">Connected</string>
+    <string name="tunnel_disconnecting">Disconnecting…</string>
+    <string name="vpn_permission_denied">VPN permission is required to connect</string>
 </resources>

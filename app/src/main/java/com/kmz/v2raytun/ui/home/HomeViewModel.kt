@@ -1,10 +1,14 @@
 package com.kmz.v2raytun.ui.home
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.kmz.v2raytun.core.TunnelController
+import com.kmz.v2raytun.core.TunnelMonitor
+import com.kmz.v2raytun.core.TunnelState
 import com.kmz.v2raytun.data.model.Profile
 import com.kmz.v2raytun.data.repo.ProfileRepository
 import com.kmz.v2raytun.util.ClipboardImport
@@ -12,6 +16,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -33,7 +40,26 @@ class HomeViewModel(
     private val _message = MutableStateFlow<UiMessage?>(null)
     val message: StateFlow<UiMessage?> = _message.asStateFlow()
 
+    /** Live tunnel status, owned by the service so it survives this ViewModel. */
+    val tunnelState: StateFlow<TunnelState> = TunnelMonitor.state
+
+    /** Set while the system's VPN consent dialog is up, so the connect can resume after it. */
+    private var pendingConnectId: Long? = null
+
     private var messageCounter = 0L
+
+    init {
+        // Surface tunnel failures as snackbars. The service reports them from its own
+        // lifecycle, which can outlive any single screen, so they arrive through the monitor
+        // rather than as a return value from connect().
+        TunnelMonitor.state
+            .filterIsInstance<TunnelState.Failed>()
+            .onEach { failure ->
+                emit(failure.reason)
+                TunnelMonitor.clearFailure()
+            }
+            .launchIn(viewModelScope)
+    }
 
     /**
      * Imports whatever the caller read from the clipboard.
@@ -79,18 +105,47 @@ class HomeViewModel(
     /**
      * Starts the tunnel for the selected server.
      *
-     * TODO(Phase 5): stand up the VpnService and hand it the selected profile. The core
-     * that does the tunnelling isn't bundled yet, so for now we acknowledge the tap
-     * honestly rather than flipping to a "connected" state that would be a lie.
+     * Returns the consent Intent the caller must launch when Android has not yet granted VPN
+     * permission, or null when the connect has been dispatched. Consent has to be shown from
+     * an Activity, so the ViewModel can only hand it back rather than launch it.
      */
-    fun connect() {
+    fun connect(): Intent? {
+        if (tunnelState.value.isActive) {
+            TunnelController.disconnect(getApplication())
+            return null
+        }
+
         val id = _selectedProfileId.value
         val profile = profiles.value.firstOrNull { it.id == id }
         if (profile == null) {
             emit("Select a server first")
+            return null
+        }
+
+        val consent = TunnelController.consentIntent(getApplication())
+        if (consent != null) {
+            pendingConnectId = profile.id
+            return consent
+        }
+
+        TunnelController.connect(getApplication(), profile.id)
+        return null
+    }
+
+    /** Completes a connect that was waiting on the system's VPN consent dialog. */
+    fun onConsentResult(granted: Boolean) {
+        val id = pendingConnectId
+        pendingConnectId = null
+
+        if (!granted) {
+            emit("VPN permission is required to connect")
             return
         }
-        emit("Can't connect yet — the tunnel engine ships in Phase 5")
+        if (id != null) TunnelController.connect(getApplication(), id)
+    }
+
+    fun disconnect() {
+        TunnelController.disconnect(getApplication())
     }
 
     fun delete(profile: Profile) {
