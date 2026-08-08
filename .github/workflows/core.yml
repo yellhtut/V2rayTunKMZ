@@ -114,10 +114,16 @@ jobs:
           # linkname references to symbols that have not opted in, so without this the link
           # fails with "invalid reference to net.zoneCache". The flag restores the pre-1.23
           # behaviour for the whole link.
+          LDFLAGS='-s -w -checklinkname=0'
+
+          # Printed on its own line so a stale workflow is obvious at a glance: if this line
+          # is missing from the log, the run is executing an older commit of this file.
+          echo "::notice::linking with -ldflags '$LDFLAGS'"
+
           gomobile bind -v \
             -target=android/arm64,android/arm,android/amd64 \
             -androidapi "${{ inputs.android_api }}" \
-            -ldflags='-s -w -checklinkname=0' \
+            -ldflags="$LDFLAGS" \
             -o "$GITHUB_WORKSPACE/libv2ray.aar" \
             "$MODULE"
           ls -l "$GITHUB_WORKSPACE/libv2ray.aar"
