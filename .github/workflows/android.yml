@@ -26,12 +26,26 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      # Provides Gradle 8.10 on PATH (AGP 8.7.3 needs Gradle 8.9+). This means we can call
-      # `gradle` directly and do not need a committed gradle-wrapper.jar.
-      - name: Set up Gradle 8.10
-        uses: gradle/actions/setup-gradle@v4
+      - name: Cache Gradle caches
+        uses: actions/cache@v4
         with:
-          gradle-version: '8.10'
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml') }}
+          restore-keys: gradle-
+
+      # Installed by hand rather than via setup-gradle: AGP 8.7.3 needs Gradle 8.9+, and the
+      # runner's own /usr/bin/gradle may be a different major version. Downloading the exact
+      # distribution keeps the build reproducible and needs no committed gradle-wrapper.jar.
+      - name: Install Gradle 8.10
+        run: |
+          curl -sSfLo /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.10-bin.zip
+          unzip -q -d "$HOME/gradle-dist" /tmp/gradle.zip
+          echo "$HOME/gradle-dist/gradle-8.10/bin" >> "$GITHUB_PATH"
+
+      - name: Verify Gradle and JDK
+        run: gradle --version
 
       - name: Unit tests (parsers)
         run: gradle :app:testDebugUnitTest --console=plain --stacktrace
