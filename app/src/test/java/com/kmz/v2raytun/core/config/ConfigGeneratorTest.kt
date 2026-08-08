@@ -60,7 +60,7 @@ class ConfigGeneratorTest {
         ConfigGenerator.generate(profile).outbounds.first { it.tag == "proxy" }
 
     @Test
-    fun `exposes a loopback socks inbound for tun2socks`() {
+    fun `exposes a loopback socks inbound`() {
         val inbound = ConfigGenerator.generate(profile()).inbounds.single()
 
         assertEquals("socks", inbound.protocol)
@@ -68,6 +68,18 @@ class ConfigGeneratorTest {
         assertEquals("127.0.0.1", inbound.listen)
         assertTrue("udp must be on or DNS breaks", inbound.settings.udp)
         assertEquals(true, inbound.sniffing?.enabled)
+    }
+
+    @Test
+    fun `enables the outbound traffic counters the core reads back`() {
+        // XrayTunnelCore.trafficStats() calls QueryStats("proxy", ...), which reads zero
+        // unless the config both turns the stats manager on and asks for outbound counters.
+        val config = ConfigGenerator.generate(profile())
+
+        assertTrue(config.policy.system.statsOutboundUplink)
+        assertTrue(config.policy.system.statsOutboundDownlink)
+        assertTrue("the proxy outbound the counters key off must be present",
+            config.outbounds.any { it.tag == "proxy" })
     }
 
     @Test

@@ -13,6 +13,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class XrayConfig(
     val log: LogConfig = LogConfig(),
+    val stats: StatsConfig = StatsConfig(),
+    val policy: PolicyConfig = PolicyConfig(),
     val inbounds: List<Inbound>,
     val outbounds: List<Outbound>,
     val dns: DnsConfig? = null,
@@ -21,6 +23,28 @@ data class XrayConfig(
 
 @Serializable
 data class LogConfig(val loglevel: String = "warning")
+
+/**
+ * Turns Xray's stats manager on. It carries no fields — its mere presence creates the
+ * manager, and [PolicyConfig] is what then asks for the individual counters.
+ */
+@Serializable
+class StatsConfig
+
+/**
+ * Asks Xray to keep the per-outbound byte counters that the tunnel core reads back through
+ * QueryStats. Without statsOutbound{Uplink,Downlink} the `outbound>>>proxy>>>traffic>>>uplink`
+ * counter is never created and every read returns zero, so the traffic figures the UI shows
+ * would sit dead at nothing.
+ */
+@Serializable
+data class PolicyConfig(val system: SystemPolicy = SystemPolicy())
+
+@Serializable
+data class SystemPolicy(
+    val statsOutboundUplink: Boolean = true,
+    val statsOutboundDownlink: Boolean = true,
+)
 
 @Serializable
 data class Inbound(
