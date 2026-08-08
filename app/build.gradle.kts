@@ -10,12 +10,23 @@ plugins {
 // whether it is present decides what gets compiled. The binding code names classes that exist
 // only inside the .aar, which is why it cannot live in src/main — a checkout without the
 // binary would stop compiling. Instead exactly one of two small source dirs is added below.
+//
+// A working engine needs BOTH halves: the binary and the code that binds it. Requiring both
+// means dropping the .aar in before the binding is written degrades to a coreless build
+// rather than failing to compile on an unresolved reference.
 val coreAar: File = file("libs/libv2ray.aar")
-val hasCore: Boolean = coreAar.exists()
+val coreBinding: File = file("src/withCore/java")
+val hasCore: Boolean = coreAar.exists() && coreBinding.isDirectory
 
 logger.lifecycle(
-    if (hasCore) "Tunnel core: linking ${coreAar.name}"
-    else "Tunnel core: none — building without a tunnel engine (see app/libs/README.md)",
+    when {
+        hasCore -> "Tunnel core: linking ${coreAar.name}"
+        coreAar.exists() ->
+            "Tunnel core: ${coreAar.name} found but src/withCore/java is missing — " +
+                "building without a tunnel engine"
+        else ->
+            "Tunnel core: none — building without a tunnel engine (see app/libs/README.md)"
+    },
 )
 
 android {

@@ -20,6 +20,11 @@ Nothing needs uncommenting. `app/build.gradle.kts` checks for the file and adapt
 | `BuildConfig.HAS_CORE` | `true` | `false` |
 | engine at runtime | the real Xray core | `MissingTunnelCore` |
 
+"Present" means **both** the `.aar` and the binding source dir `app/src/withCore/java`. A
+working engine needs the binary and the code that calls into it, and the binding is written
+against a specific version of the core's API — so dropping the `.aar` in on its own falls back
+to a coreless build (with a log line saying why) instead of failing to compile.
+
 The swap is a whole source directory rather than a flag because the binding code names classes
 that exist only inside the `.aar` — a clean clone has to compile without them. `MissingTunnelCore`
 throws on `start()` instead of pretending to connect, so a coreless build cannot masquerade as a
