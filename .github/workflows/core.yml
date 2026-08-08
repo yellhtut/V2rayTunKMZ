@@ -108,10 +108,16 @@ jobs:
           go mod download
           MODULE="$(go list -m)"
           echo "Binding module: $MODULE"
+
+          # -checklinkname=0 is required, not cosmetic. Xray pulls in github.com/wlynxg/anet,
+          # which reaches net.zoneCache through //go:linkname. Go 1.23 made the linker reject
+          # linkname references to symbols that have not opted in, so without this the link
+          # fails with "invalid reference to net.zoneCache". The flag restores the pre-1.23
+          # behaviour for the whole link.
           gomobile bind -v \
             -target=android/arm64,android/arm,android/amd64 \
             -androidapi "${{ inputs.android_api }}" \
-            -ldflags='-s -w' \
+            -ldflags='-s -w -checklinkname=0' \
             -o "$GITHUB_WORKSPACE/libv2ray.aar" \
             "$MODULE"
           ls -l "$GITHUB_WORKSPACE/libv2ray.aar"
