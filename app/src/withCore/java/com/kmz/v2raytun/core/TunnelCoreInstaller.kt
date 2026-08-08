@@ -1,10 +1,11 @@
 package com.kmz.v2raytun.core
 
 import android.content.Context
+import android.util.Base64
 import android.util.Log
 import libv2ray.Libv2ray
 import java.io.File
-import java.util.UUID
+import java.security.SecureRandom
 import kotlin.concurrent.thread
 
 /**
@@ -53,19 +54,40 @@ private fun copyGeoAssets(context: Context, target: File) {
 }
 
 /**
- * Per-install identifier the core uses to derive XUDP's base key. It only has to be stable
- * and unpredictable — deliberately not a hardware ID, which would be a tracking vector and
- * is restricted on modern Android anyway.
+ * XUDP's base key, as the core demands it: 32 random bytes, base64url-encoded without padding.
+ * Xray decodes this with RawURLEncoding and rejects anything that isn't exactly 32 decoded
+ * bytes ("BaseKey must be 32 bytes"), which is why a UUID string — what an earlier build stored
+ * here — fails core init before any profile is even read.
+ *
+ * The key only has to be stable and unpredictable per install; it is deliberately not derived
+ * from a hardware ID, which would be a tracking vector and is restricted on modern Android.
+ * A value left by that earlier build is detected as invalid and replaced in place.
  */
 private fun xudpBaseKey(context: Context): String {
     val prefs = context.getSharedPreferences("core", Context.MODE_PRIVATE)
-    prefs.getString(KEY_XUDP, null)?.let { return it }
 
-    return UUID.randomUUID().toString().also {
+    prefs.getString(KEY_XUDP, null)?.let { stored ->
+        if (decodesTo32Bytes(stored)) return stored
+        Log.w(TAG, "stored XUDP base key is not 32 bytes; regenerating")
+    }
+
+    return newBaseKey().also {
         prefs.edit().putString(KEY_XUDP, it).apply()
     }
 }
 
+private fun newBaseKey(): String {
+    val raw = ByteArray(32).also { SecureRandom().nextBytes(it) }
+    return Base64.encodeToString(raw, BASE64_FLAGS)
+}
+
+/** Mirrors the core's own check: must decode (base64url, no padding) to exactly 32 bytes. */
+private fun decodesTo32Bytes(key: String): Boolean = runCatching {
+    Base64.decode(key, BASE64_FLAGS).size == 32
+}.getOrDefault(false)
+
 private const val TAG = "TunnelCore"
 private const val KEY_XUDP = "xudpBaseKey"
+// URL_SAFE + NO_PADDING match Go's base64.RawURLEncoding; NO_WRAP keeps it a single line.
+private const val BASE64_FLAGS = Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP
 private val GEO_ASSETS = listOf("geoip.dat", "geosite.dat")
